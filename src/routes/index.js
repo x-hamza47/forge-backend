@@ -8,6 +8,10 @@ import workoutLogRoutes from "./workoutLog.routes.js";
 import nutritionRoutes from "./nutrition.routes.js";
 import progressRoutes from "./progress.routes.js";
 import overviewRoutes from "./overview.routes.js";
+import reportRoutes from "./report.routes.js";
+import reminderRoutes from "./reminder.routes.js";
+import ticketRoutes from "./ticket.routes.js";
+import adminRoutes from "./admin.routes.js";
 
 const router = Router();
 
@@ -20,5 +24,9 @@ router.use("/workout-logs", workoutLogRoutes);
 router.use("/nutrition", nutritionRoutes);
 router.use("/progress", progressRoutes);
 router.use("/overview", overviewRoutes);
+router.use("/reports", reportRoutes);
+router.use("/reminders", reminderRoutes);
+router.use("/tickets", ticketRoutes);
+router.use("/admin", adminRoutes);
 
 export default router;

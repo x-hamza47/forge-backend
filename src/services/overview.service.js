@@ -1,13 +1,12 @@
 import User from "../models/user.model.js";
-import Workout from "../models/workout.model.js";
 import WorkoutLog from "../models/workoutLog.model.js";
 import Meal from "../models/meal.model.js";
 import BodyEntry from "../models/bodyEntry.model.js";
 import Notification from "../models/notification.model.js";
-import { calculateTargets } from "../utils/nutritionTargets.js";
+import { calculateTargets, calculatePlan } from "../utils/nutritionTargets.js";
+import { getUpcomingReminders } from "./reminder.service.js";
 
 const RANGE_DAYS = { "7d": 7, "30d": 30, "90d": 90 };
-const WEEKLY_GOAL = 5;
 const DAY_MS = 24 * 60 * 60 * 1000;
 const round1 = (n) => Math.round(n * 10) / 10;
 
@@ -60,7 +59,7 @@ export const getOverview = async (userId, range = "30d") => {
     const today = toISODate(startOfDay());
     const rangeStartISO = toISODate(rangeStart);
 
-    const [user, logs, allLogDates, meals, bodyEntries, recentLogs, recentMealDocs, notifications] =
+    const [user, logs, allLogDates, meals, bodyEntries, recentLogs, recentMealDocs, notifications, upcomingReminders] =
         await Promise.all([
             User.findById(userId),
             WorkoutLog.find({ user: userId, performedAt: { $gte: rangeStart } }),
@@ -72,9 +71,12 @@ export const getOverview = async (userId, range = "30d") => {
             WorkoutLog.find({ user: userId }).sort({ performedAt: -1 }).limit(5),
             Meal.find({ user: userId }).sort({ date: -1, createdAt: -1 }).limit(4),
             Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(4).populate("actor", "name"),
+            getUpcomingReminders(userId, 5),
         ]);
 
     const targets = calculateTargets(user);
+    const plan = calculatePlan(user);
+    const weeklyGoal = plan.recommendedWorkoutsPerWeek;
 
     const activityByDate = new Map();
     for (const log of logs) {
@@ -113,7 +115,7 @@ export const getOverview = async (userId, range = "30d") => {
             id: "weekly-workouts",
             title: "Workouts this week",
             current: workoutsThisWeek,
-            target: WEEKLY_GOAL,
+            target: weeklyGoal,
             unit: "workouts",
         },
     ];
@@ -132,7 +134,7 @@ export const getOverview = async (userId, range = "30d") => {
         range,
         summary: {
             workoutsThisWeek,
-            workoutsWeeklyGoal: WEEKLY_GOAL,
+            workoutsWeeklyGoal: weeklyGoal,
             caloriesToday: Math.round(todayTotals.calories),
             caloriesTarget: targets.calories,
             currentWeightKg,
@@ -189,6 +191,7 @@ export const getOverview = async (userId, range = "30d") => {
             createdAt: n.createdAt,
             read: n.read,
         })),
-        reminders: [],
+        reminders: upcomingReminders,
+        plan,
     };
 };

@@ -6,7 +6,13 @@ import {
   createMeal,
   updateMeal,
   deleteMeal,
+  getNutritionPlan,
 } from "../services/meal.service.js";
+
+export const plan = asyncHandler(async (req, res) => {
+  const data = await getNutritionPlan(req.user._id);
+  return ok(res, data, "Nutrition plan fetched.");
+});
 
 export const day = asyncHandler(async (req, res) => {
   const data = await getDay(req.user._id, req.params.date);

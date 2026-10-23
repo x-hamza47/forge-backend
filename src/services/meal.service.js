@@ -3,7 +3,7 @@ import Meal, { MEAL_TYPES } from "../models/meal.model.js";
 import User from "../models/user.model.js";
 import Notification from "../models/notification.model.js";
 import ApiError from "../utils/ApiError.js";
-import { calculateTargets } from "../utils/nutritionTargets.js";
+import { calculateTargets, calculatePlan } from "../utils/nutritionTargets.js";
 
 const RANGE_DAYS = { "7d": 7, "30d": 30, "90d": 90 };
 const round1 = (n) => Math.round(n * 10) / 10;
@@ -59,6 +59,11 @@ const getTargets = async (userId) => {
     "weight height dateOfBirth sex goal activityLevel",
   );
   return calculateTargets(user);
+};
+
+export const getNutritionPlan = async (userId) => {
+  const user = await User.findById(userId);
+  return calculatePlan(user);
 };
 
 const notifyGoalReached = async (userId, date, targets) => {

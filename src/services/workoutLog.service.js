@@ -116,7 +116,11 @@ export const listLogs = async (userId, query = {}) => {
   if (from || to) {
     filter.performedAt = {};
     if (from) filter.performedAt.$gte = parseDate(from, "from date");
-    if (to) filter.performedAt.$lte = parseDate(to, "to date");
+    if (to) {
+      const toDate = parseDate(to, "to date");
+      toDate.setHours(23, 59, 59, 999);
+      filter.performedAt.$lte = toDate;
+    }
   }
 
   const term = typeof search === "string" ? search.trim() : "";

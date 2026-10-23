@@ -59,7 +59,10 @@ export async function getNotifications(userId, { page = 1, limit = 20 } = {}) {
     };
 }
 
-export function getUnreadCount(userId) {
+import { checkDueReminders } from "./reminder.service.js";
+
+export async function getUnreadCount(userId) {
+    await checkDueReminders(userId);
     return Notification.countDocuments({ user: userId, read: false });
 }
 

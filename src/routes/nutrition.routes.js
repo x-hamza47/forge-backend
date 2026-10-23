@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/authenticate.middleware.js";
 import { validate } from "../middlewares/validate.middleware.js";
-import { day, analytics, create, update, remove } from "../controllers/meal.controller.js";
+import { day, analytics, create, update, remove, plan } from "../controllers/meal.controller.js";
 import {
   createMealSchema,
   updateMealSchema,
@@ -14,6 +14,7 @@ const router = Router();
 
 router.use(authenticate);
 
+router.get("/plan", plan);
 router.get("/analytics", validate(analyticsQuerySchema, "query"), analytics);
 router.get("/days/:date", validate(dayParamSchema, "params"), day);
 
