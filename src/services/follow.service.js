@@ -180,21 +180,27 @@ export async function rejectRequest(currentUserId, requestId) {
 
 export async function searchUsers(currentUserId, { q = "", page = 1, limit = 20 } = {}) {
   const term = String(q).trim();
-  if (term.length < 2) return { items: [], total: 0, page: 1, pages: 0 };
 
   const { safePage, safeLimit, skip } = paginate({ page, limit });
-  const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
 
   const filter = {
     _id: { $ne: currentUserId },
     role: "user",
     isActive: true,
     "preferences.privacy.searchable": { $ne: false },
-    $or: [{ name: regex }, { username: regex }],
   };
 
+  if (term) {
+    const regex = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i");
+    filter.$or = [{ name: regex }, { username: regex }];
+  }
+
   const [users, total] = await Promise.all([
-    User.find(filter).select(USER_FIELDS).sort({ name: 1 }).skip(skip).limit(safeLimit),
+    User.find(filter)
+      .select(USER_FIELDS)
+      .sort(term ? { name: 1 } : { createdAt: -1 })
+      .skip(skip)
+      .limit(safeLimit),
     User.countDocuments(filter),
   ]);
 
