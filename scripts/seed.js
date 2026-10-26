@@ -1,6 +1,5 @@
 import "dotenv/config";
 import mongoose from "mongoose";
-import bcrypt from "bcrypt";
 import User from "../src/models/user.model.js";
 import Workout from "../src/models/workout.model.js";
 import WorkoutLog from "../src/models/workoutLog.model.js";
@@ -12,9 +11,21 @@ import Reminder from "../src/models/reminder.model.js";
 import Ticket from "../src/models/ticket.model.js";
 import Notification from "../src/models/notification.model.js";
 
+const pad = (n) => String(n).padStart(2, "0");
+const isoDaysAgo = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+};
+const dateDaysAgo = (n) => {
+  const d = new Date();
+  d.setDate(d.getDate() - n);
+  return d;
+};
+
 async function runSeed() {
   const uri = process.env.MONGODB_URI || process.env.MONGO_URI || "mongodb://127.0.0.1:27017/forge";
-  console.log(`Connecting to MongoDB: ${uri}`);
+  console.log("Connecting to MongoDB...");
   await mongoose.connect(uri);
 
   console.log("Purging old records...");
@@ -31,17 +42,17 @@ async function runSeed() {
     Notification.deleteMany({}),
   ]);
 
-  console.log("Seeding Admin and Athletes...");
+  console.log("Seeding users...");
 
-  // 1. Admin Account
-  const admin = await User.create({
-    name: "Forge Administrator",
+  // ---------------------------------------------------------------- Admin
+  await User.create({
+    name: "Forge Admin",
     username: "admin",
-    email: "admin@forge.fitness",
+    email: "admin@gmail.com",
     password: "Admin12345!",
     role: "admin",
     isActive: true,
-    bio: "Chief Systems & Athletics Director at Forge HQ.",
+    bio: "Forge platform administrator.",
     consentAt: new Date(),
     preferences: {
       units: "metric",
@@ -49,16 +60,17 @@ async function runSeed() {
     },
   });
 
-  // 2. Hamza Aamir (Primary User Account) - support both hamza@forge.com & hamza@forge.fitness
-  const hamza = await User.create({
-    name: "Hamza Aamir",
-    username: "hamza_aamir",
-    email: "hamza@forge.com",
-    password: "Hamza123!",
+  // ---------------------------------------------------------------- Alex (main demo user)
+  const alex = await User.create({
+    name: "Alex Carter",
+    username: "alex_carter",
+    email: "alex@gmail.com",
+    password: "Alex12345!",
     role: "user",
     isActive: true,
-    bio: "Dedicated athlete at Forge. Focused on progressive overload, aesthetic strength, and balanced performance.",
+    bio: "Focused on progressive overload and balanced performance.",
     sex: "male",
+    dateOfBirth: new Date("1998-05-14"),
     height: 178,
     weight: 76,
     targetWeight: 80,
@@ -72,27 +84,15 @@ async function runSeed() {
     },
   });
 
-  // Also create hamza@forge.fitness so both .com and .fitness work!
-  await User.create({
-    name: "Hamza Aamir",
-    username: "hamza",
-    email: "hamza@forge.fitness",
-    password: "Hamza123!",
-    role: "user",
-    isActive: true,
-    bio: "Dedicated athlete at Forge.",
-    consentAt: new Date(),
-  });
-
-  // 3. Community Athletes
+  // ---------------------------------------------------------------- Elena
   const elena = await User.create({
     name: "Elena Rostova",
     username: "elena_fit",
-    email: "elena@forge.fitness",
-    password: "Athlete123!",
+    email: "elena@gmail.com",
+    password: "Elena12345!",
     role: "user",
     isActive: true,
-    bio: "Functional fitness athlete, marathon runner, and nutrition nerd.",
+    bio: "Marathon runner and nutrition fan.",
     sex: "female",
     height: 168,
     weight: 60,
@@ -106,14 +106,15 @@ async function runSeed() {
     },
   });
 
+  // ---------------------------------------------------------------- Marcus
   const marcus = await User.create({
     name: "Marcus Vance",
     username: "marcus_lift",
-    email: "marcus@forge.fitness",
-    password: "Athlete123!",
+    email: "marcus@gmail.com",
+    password: "Marcus12345!",
     role: "user",
     isActive: true,
-    bio: "Powerlifter & Strength enthusiast. Chasing heavy compound personal records.",
+    bio: "Powerlifter chasing heavy compound records.",
     sex: "male",
     height: 182,
     weight: 88,
@@ -127,65 +128,75 @@ async function runSeed() {
     },
   });
 
-  console.log("Seeding Workout Routines for Hamza Aamir...");
+  // ================================================================ WORKOUT ROUTINES
+  console.log("Seeding workout routines...");
+
   const pushRoutine = await Workout.create({
-    user: hamza._id,
-    name: "Hamza's Heavy Push Day",
+    user: alex._id,
+    name: "Push Day",
     category: "strength",
     durationMin: 60,
     tags: ["chest", "shoulders", "triceps"],
-    notes: "Rest 2 mins between compound sets. Controlled eccentrics.",
+    notes: "Rest 2 minutes between compound sets.",
     favorite: true,
     exercises: [
       { name: "Barbell Bench Press", sets: 4, reps: 8, weightKg: 85, notes: "Explosive press" },
-      { name: "Incline Dumbbell Press", sets: 3, reps: 10, weightKg: 30, notes: "Deep stretch at bottom" },
+      { name: "Incline Dumbbell Press", sets: 3, reps: 10, weightKg: 30, notes: "Deep stretch" },
       { name: "Standing Overhead Press", sets: 3, reps: 8, weightKg: 50, notes: "Core tight" },
-      { name: "Dumbbell Lateral Raises", sets: 4, reps: 15, weightKg: 12, notes: "Slight forward lean" },
       { name: "Cable Tricep Pushdowns", sets: 3, reps: 12, weightKg: 35, notes: "Squeeze at lockout" },
     ],
   });
 
   const pullRoutine = await Workout.create({
-    user: hamza._id,
-    name: "Hamza's Lat & Upper Back Focus",
+    user: alex._id,
+    name: "Pull Day",
     category: "strength",
     durationMin: 65,
-    tags: ["back", "biceps", "pull"],
-    notes: "Drive with the elbows, squeeze the upper back.",
+    tags: ["back", "biceps"],
+    notes: "Drive with the elbows.",
     favorite: true,
     exercises: [
-      { name: "Weighted Pull-Ups", sets: 4, reps: 8, weightKg: 10, notes: "Full dead-hang stretch" },
+      { name: "Weighted Pull-Ups", sets: 4, reps: 8, weightKg: 10, notes: "Full stretch" },
       { name: "Barbell Bent Over Row", sets: 4, reps: 10, weightKg: 75, notes: "45 degree torso" },
-      { name: "Close-Grip Lat Pulldown", sets: 3, reps: 12, weightKg: 65, notes: "Control the negative" },
-      { name: "Incline Dumbbell Bicep Curls", sets: 3, reps: 12, weightKg: 14, notes: "Supinate at top" },
-      { name: "Face Pulls", sets: 4, reps: 15, weightKg: 25, notes: "Rear delt activation" },
+      { name: "Lat Pulldown", sets: 3, reps: 12, weightKg: 65, notes: "Control the negative" },
+      { name: "Dumbbell Bicep Curls", sets: 3, reps: 12, weightKg: 14, notes: "Supinate at top" },
     ],
   });
 
   const legRoutine = await Workout.create({
-    user: hamza._id,
-    name: "Hamza's Leg & Core Circuit",
+    user: alex._id,
+    name: "Leg Day",
     category: "strength",
     durationMin: 70,
     tags: ["quads", "hamstrings", "core"],
-    notes: "Deep squat depth with tight brace.",
+    notes: "Deep squat with a tight brace.",
     favorite: false,
     exercises: [
       { name: "Barbell Back Squat", sets: 4, reps: 6, weightKg: 110, notes: "Hit parallel" },
-      { name: "Romanian Deadlift", sets: 3, reps: 10, weightKg: 90, notes: "Feel hamstring stretch" },
+      { name: "Romanian Deadlift", sets: 3, reps: 10, weightKg: 90, notes: "Feel the stretch" },
       { name: "Bulgarian Split Squats", sets: 3, reps: 10, weightKg: 20, notes: "Per leg" },
-      { name: "Hanging Leg Raises", sets: 3, reps: 15, weightKg: null, notes: "Controlled core contraction" },
+      { name: "Hanging Leg Raises", sets: 3, reps: 15, weightKg: null, notes: "Controlled" },
     ],
   });
 
-  // Routine for Elena
+  await Workout.create({
+    user: alex._id,
+    name: "Easy Cardio",
+    category: "cardio",
+    durationMin: 30,
+    tags: ["running"],
+    notes: "Easy pace, keep heart rate low.",
+    favorite: false,
+    exercises: [{ name: "Treadmill Jog", sets: 1, reps: 1, weightKg: null, notes: "30 minutes" }],
+  });
+
   await Workout.create({
     user: elena._id,
-    name: "Elena's 5K Tempo Run & Core",
+    name: "5K Tempo Run",
     category: "cardio",
     durationMin: 45,
     tags: ["running", "endurance"],
-    notes: "Zone 4 tempo run followed by core stability.",
+    notes: "Tempo run followed by core work.",
     favorite: true,
     exercises: [
       { name: "Outdoor 5K Run", sets: 1, reps: 1, weightKg: null, notes: "22:15 pace" },
@@ -193,23 +204,31 @@ async function runSeed() {
     ],
   });
 
-  console.log("Seeding Completed Workout Sessions...");
-  const now = new Date();
-  const d1 = new Date(now);
-  d1.setDate(d1.getDate() - 1);
-  const d2 = new Date(now);
-  d2.setDate(d2.getDate() - 2);
-  const d3 = new Date(now);
-  d3.setDate(d3.getDate() - 4);
+  await Workout.create({
+    user: marcus._id,
+    name: "Heavy Deadlift Day",
+    category: "strength",
+    durationMin: 75,
+    tags: ["back", "legs"],
+    notes: "Work up to a heavy top set.",
+    favorite: true,
+    exercises: [
+      { name: "Conventional Deadlift", sets: 5, reps: 3, weightKg: 180, notes: "Reset each rep" },
+      { name: "Barbell Row", sets: 3, reps: 8, weightKg: 90, notes: "Strict form" },
+    ],
+  });
+
+  // ================================================================ WORKOUT LOGS (Alex: 6 sessions over the last 2 weeks)
+  console.log("Seeding workout sessions...");
 
   await WorkoutLog.create([
     {
-      user: hamza._id,
+      user: alex._id,
       workout: pushRoutine._id,
-      name: "Hamza's Heavy Push Day",
+      name: "Push Day",
       category: "strength",
       durationMin: 58,
-      performedAt: d1,
+      performedAt: dateDaysAgo(1),
       exercises: [
         {
           name: "Barbell Bench Press",
@@ -219,7 +238,7 @@ async function runSeed() {
             { reps: 8, weightKg: 85 },
             { reps: 7, weightKg: 85 },
           ],
-          notes: "Felt strong!",
+          notes: "Felt strong",
         },
         {
           name: "Incline Dumbbell Press",
@@ -230,15 +249,15 @@ async function runSeed() {
           ],
         },
       ],
-      notes: "Felt incredible! Hit 85kg on bench press for clean sets.",
+      notes: "Great session, clean sets on bench.",
     },
     {
-      user: hamza._id,
+      user: alex._id,
       workout: pullRoutine._id,
-      name: "Hamza's Lat & Upper Back Focus",
+      name: "Pull Day",
       category: "strength",
       durationMin: 62,
-      performedAt: d2,
+      performedAt: dateDaysAgo(2),
       exercises: [
         {
           name: "Weighted Pull-Ups",
@@ -257,15 +276,15 @@ async function runSeed() {
           ],
         },
       ],
-      notes: "Great pump in lats and biceps. Form remained strict throughout.",
+      notes: "Good pump, strict form.",
     },
     {
-      user: hamza._id,
+      user: alex._id,
       workout: legRoutine._id,
-      name: "Hamza's Leg & Core Circuit",
+      name: "Leg Day",
       category: "strength",
       durationMin: 67,
-      performedAt: d3,
+      performedAt: dateDaysAgo(4),
       exercises: [
         {
           name: "Barbell Back Squat",
@@ -276,57 +295,130 @@ async function runSeed() {
           ],
         },
       ],
-      notes: "Heavy squats felt strong and stable.",
+      notes: "Heavy squats felt stable.",
+    },
+    {
+      user: alex._id,
+      workout: pushRoutine._id,
+      name: "Push Day",
+      category: "strength",
+      durationMin: 60,
+      performedAt: dateDaysAgo(8),
+      exercises: [
+        {
+          name: "Barbell Bench Press",
+          sets: [
+            { reps: 8, weightKg: 82.5 },
+            { reps: 8, weightKg: 82.5 },
+            { reps: 7, weightKg: 82.5 },
+          ],
+        },
+      ],
+      notes: "Slightly lighter week.",
+    },
+    {
+      user: alex._id,
+      workout: pullRoutine._id,
+      name: "Pull Day",
+      category: "strength",
+      durationMin: 63,
+      performedAt: dateDaysAgo(9),
+      exercises: [
+        {
+          name: "Barbell Bent Over Row",
+          sets: [
+            { reps: 10, weightKg: 72.5 },
+            { reps: 10, weightKg: 72.5 },
+            { reps: 9, weightKg: 72.5 },
+          ],
+        },
+      ],
+      notes: "Solid back session.",
+    },
+    {
+      user: alex._id,
+      workout: legRoutine._id,
+      name: "Leg Day",
+      category: "strength",
+      durationMin: 66,
+      performedAt: dateDaysAgo(11),
+      exercises: [
+        {
+          name: "Barbell Back Squat",
+          sets: [
+            { reps: 6, weightKg: 105 },
+            { reps: 6, weightKg: 105 },
+            { reps: 6, weightKg: 105 },
+          ],
+        },
+      ],
+      notes: "Good depth on every rep.",
     },
     {
       user: elena._id,
-      name: "Elena's 5K Tempo Run & Core",
+      name: "5K Tempo Run",
       category: "cardio",
       durationMin: 44,
-      performedAt: d1,
+      performedAt: dateDaysAgo(1),
       exercises: [
         {
           name: "Outdoor 5K Run",
           sets: [{ reps: 1, weightKg: null }],
-          notes: "Fast 22 min pace",
+          notes: "Fast 22 minute pace",
         },
       ],
-      notes: "Morning 5k completed in brisk weather.",
+      notes: "Morning run in cool weather.",
+    },
+    {
+      user: marcus._id,
+      name: "Heavy Deadlift Day",
+      category: "strength",
+      durationMin: 72,
+      performedAt: dateDaysAgo(2),
+      exercises: [
+        {
+          name: "Conventional Deadlift",
+          sets: [
+            { reps: 3, weightKg: 180 },
+            { reps: 3, weightKg: 180 },
+            { reps: 3, weightKg: 180 },
+          ],
+        },
+      ],
+      notes: "New training max.",
     },
   ]);
 
-  console.log("Seeding Daily Nutrition for Hamza...");
-  const todayStr = new Date().toISOString().split("T")[0];
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterdayStr = yesterdayDate.toISOString().split("T")[0];
+  // ================================================================ NUTRITION (Alex: today + 3 earlier days)
+  console.log("Seeding nutrition...");
 
   await Meal.create([
+    // Today
     {
-      user: hamza._id,
-      date: todayStr,
+      user: alex._id,
+      date: isoDaysAgo(0),
       mealType: "breakfast",
       items: [
-        { name: "Scrambled Eggs (4 whole)", quantity: 4, unit: "unit", calories: 280, macros: { protein: 24, carbs: 2, fat: 20 } },
-        { name: "Oats with Honey & Blueberries", quantity: 100, unit: "g", calories: 370, macros: { protein: 12, carbs: 68, fat: 5 } },
+        { name: "Scrambled Eggs (4 whole)", quantity: 4, unit: "piece", calories: 280, macros: { protein: 24, carbs: 2, fat: 20 } },
+        { name: "Oats with Honey and Blueberries", quantity: 100, unit: "g", calories: 370, macros: { protein: 12, carbs: 68, fat: 5 } },
         { name: "Whey Protein Shake", quantity: 30, unit: "g", calories: 120, macros: { protein: 26, carbs: 1, fat: 1 } },
       ],
       notes: "High protein breakfast",
     },
     {
-      user: hamza._id,
-      date: todayStr,
+      user: alex._id,
+      date: isoDaysAgo(0),
       mealType: "lunch",
       items: [
-        { name: "Grilled Herb Chicken Breast", quantity: 220, unit: "g", calories: 320, macros: { protein: 60, carbs: 0, fat: 6 } },
+        { name: "Grilled Chicken Breast", quantity: 220, unit: "g", calories: 320, macros: { protein: 60, carbs: 0, fat: 6 } },
         { name: "Basmati Rice", quantity: 200, unit: "g", calories: 260, macros: { protein: 5, carbs: 58, fat: 1 } },
-        { name: "Mixed Roasted Vegetables", quantity: 150, unit: "g", calories: 95, macros: { protein: 3, carbs: 12, fat: 4 } },
+        { name: "Roasted Vegetables", quantity: 150, unit: "g", calories: 95, macros: { protein: 3, carbs: 12, fat: 4 } },
       ],
-      notes: "Post-workout fueling",
+      notes: "Post-workout meal",
     },
     {
-      user: hamza._id,
-      date: todayStr,
+      user: alex._id,
+      date: isoDaysAgo(0),
       mealType: "dinner",
       items: [
         { name: "Salmon Fillet", quantity: 180, unit: "g", calories: 370, macros: { protein: 36, carbs: 0, fat: 22 } },
@@ -335,91 +427,132 @@ async function runSeed() {
       ],
     },
     {
-      user: hamza._id,
-      date: yesterdayStr,
+      user: alex._id,
+      date: isoDaysAgo(0),
+      mealType: "snack",
+      items: [
+        { name: "Greek Yogurt", quantity: 150, unit: "g", calories: 90, macros: { protein: 15, carbs: 6, fat: 0 } },
+        { name: "Banana", quantity: 1, unit: "piece", calories: 105, macros: { protein: 1, carbs: 27, fat: 0 } },
+      ],
+    },
+    // Yesterday
+    {
+      user: alex._id,
+      date: isoDaysAgo(1),
+      mealType: "breakfast",
+      items: [
+        { name: "Whole Wheat Toast", quantity: 2, unit: "piece", calories: 160, macros: { protein: 8, carbs: 28, fat: 2 } },
+        { name: "Peanut Butter", quantity: 30, unit: "g", calories: 190, macros: { protein: 8, carbs: 6, fat: 16 } },
+      ],
+    },
+    {
+      user: alex._id,
+      date: isoDaysAgo(1),
       mealType: "lunch",
       items: [
         { name: "Lean Beef Steak", quantity: 200, unit: "g", calories: 380, macros: { protein: 52, carbs: 0, fat: 18 } },
-        { name: "Baked Potato with Greek Yogurt", quantity: 250, unit: "g", calories: 240, macros: { protein: 8, carbs: 50, fat: 1 } },
+        { name: "Baked Potato", quantity: 250, unit: "g", calories: 240, macros: { protein: 8, carbs: 50, fat: 1 } },
+      ],
+    },
+    {
+      user: alex._id,
+      date: isoDaysAgo(1),
+      mealType: "dinner",
+      items: [
+        { name: "Chicken Stir Fry with Rice", quantity: 1, unit: "serving", calories: 520, macros: { protein: 42, carbs: 55, fat: 14 } },
+      ],
+    },
+    // 2 days ago
+    {
+      user: alex._id,
+      date: isoDaysAgo(2),
+      mealType: "breakfast",
+      items: [
+        { name: "Oatmeal with Milk", quantity: 250, unit: "g", calories: 300, macros: { protein: 12, carbs: 50, fat: 6 } },
+      ],
+    },
+    {
+      user: alex._id,
+      date: isoDaysAgo(2),
+      mealType: "dinner",
+      items: [
+        { name: "Tuna Pasta", quantity: 1, unit: "serving", calories: 600, macros: { protein: 40, carbs: 70, fat: 15 } },
+      ],
+    },
+    // 3 days ago
+    {
+      user: alex._id,
+      date: isoDaysAgo(3),
+      mealType: "lunch",
+      items: [
+        { name: "Chicken Wrap", quantity: 1, unit: "piece", calories: 450, macros: { protein: 32, carbs: 40, fat: 14 } },
+      ],
+    },
+    // Elena and Marcus (one day each)
+    {
+      user: elena._id,
+      date: isoDaysAgo(0),
+      mealType: "breakfast",
+      items: [
+        { name: "Banana Smoothie", quantity: 300, unit: "ml", calories: 220, macros: { protein: 6, carbs: 45, fat: 3 } },
+      ],
+    },
+    {
+      user: marcus._id,
+      date: isoDaysAgo(0),
+      mealType: "lunch",
+      items: [
+        { name: "Beef and Rice Bowl", quantity: 1, unit: "serving", calories: 750, macros: { protein: 55, carbs: 80, fat: 20 } },
       ],
     },
   ]);
 
-  console.log("Seeding Progress Metrics for Hamza...");
+  // ================================================================ PROGRESS (Alex)
+  console.log("Seeding progress...");
+
   await BodyEntry.create([
-    {
-      user: hamza._id,
-      date: yesterdayStr,
-      weightKg: 75.5,
-      measurements: {
-        chest: 104,
-        waist: 79,
-        hips: 96,
-        biceps: 38.5,
-        thighs: 58,
-      },
-      notes: "Morning measurement",
-    },
-    {
-      user: hamza._id,
-      date: todayStr,
-      weightKg: 76.0,
-      measurements: {
-        chest: 105.5,
-        waist: 78.5,
-        hips: 96,
-        biceps: 39.2,
-        thighs: 58.5,
-      },
-      notes: "Gaining lean muscle steadily",
-    },
+    { user: alex._id, date: isoDaysAgo(28), weightKg: 74.2, measurements: { chest: 102, waist: 80, hips: 95, biceps: 37.5, thighs: 57 }, notes: "Starting point" },
+    { user: alex._id, date: isoDaysAgo(21), weightKg: 74.8, measurements: { chest: 102.8, waist: 79.8, hips: 95.5, biceps: 37.9, thighs: 57.3 } },
+    { user: alex._id, date: isoDaysAgo(14), weightKg: 75.2, measurements: { chest: 103.5, waist: 79.5, hips: 95.8, biceps: 38.2, thighs: 57.8 } },
+    { user: alex._id, date: isoDaysAgo(7), weightKg: 75.7, measurements: { chest: 104.5, waist: 79, hips: 96, biceps: 38.8, thighs: 58.2 } },
+    { user: alex._id, date: isoDaysAgo(0), weightKg: 76.0, measurements: { chest: 105.5, waist: 78.5, hips: 96, biceps: 39.2, thighs: 58.5 }, notes: "Gaining lean muscle steadily" },
   ]);
 
   await PerformanceEntry.create([
-    {
-      user: hamza._id,
-      date: yesterdayStr,
-      metric: "bench_press",
-      value: 85,
-      notes: "Smooth 8 reps",
-    },
-    {
-      user: hamza._id,
-      date: yesterdayStr,
-      metric: "pull_ups",
-      value: 14,
-      notes: "Strict bodyweight reps",
-    },
-    {
-      user: hamza._id,
-      date: todayStr,
-      metric: "squat",
-      value: 110,
-      notes: "Solid 4x6",
-    },
+    { user: alex._id, date: isoDaysAgo(21), metric: "bench_press", value: 80, notes: "Clean 8 reps" },
+    { user: alex._id, date: isoDaysAgo(14), metric: "bench_press", value: 82.5 },
+    { user: alex._id, date: isoDaysAgo(7), metric: "bench_press", value: 85, notes: "Smooth 8 reps" },
+    { user: alex._id, date: isoDaysAgo(14), metric: "squat", value: 100 },
+    { user: alex._id, date: isoDaysAgo(2), metric: "squat", value: 110, notes: "Solid 4x6" },
+    { user: alex._id, date: isoDaysAgo(10), metric: "pull_ups", value: 12 },
+    { user: alex._id, date: isoDaysAgo(3), metric: "pull_ups", value: 14, notes: "Strict bodyweight reps" },
   ]);
 
-  console.log("Seeding Social Follow Connections...");
+  // ================================================================ SOCIAL
+  console.log("Seeding follows...");
+
   await Follow.create([
-    { follower: hamza._id, following: elena._id, status: "accepted" },
-    { follower: elena._id, following: hamza._id, status: "accepted" },
-    { follower: marcus._id, following: hamza._id, status: "accepted" },
-    { follower: hamza._id, following: marcus._id, status: "accepted" },
+    { follower: alex._id, following: elena._id, status: "accepted" },
+    { follower: elena._id, following: alex._id, status: "accepted" },
+    { follower: marcus._id, following: alex._id, status: "accepted" },
+    { follower: alex._id, following: marcus._id, status: "accepted" },
   ]);
 
-  console.log("Seeding Reminders for Hamza...");
+  // ================================================================ REMINDERS (Alex)
+  console.log("Seeding reminders...");
+
   await Reminder.create([
     {
-      user: hamza._id,
-      title: "Morning Creatine & Hydration",
+      user: alex._id,
+      title: "Morning creatine and water",
       kind: "meal",
       time: "08:00",
       days: [0, 1, 2, 3, 4, 5, 6],
       active: true,
     },
     {
-      user: hamza._id,
-      title: "Push Workout at 6:00 PM",
+      user: alex._id,
+      title: "Gym session",
       kind: "workout",
       time: "17:30",
       days: [1, 3, 5],
@@ -427,47 +560,42 @@ async function runSeed() {
     },
   ]);
 
-  console.log("Seeding Support Tickets...");
+  // ================================================================ SUPPORT TICKETS
+  console.log("Seeding support tickets...");
+
   await Ticket.create([
     {
-      user: hamza._id,
+      user: alex._id,
       type: "feedback",
-      subject: "Incredible dark mode & workout tracking UX!",
-      message: "The platform feels state of the art. Adding sets, reps, and viewing telemetry in the dashboard is super smooth.",
+      subject: "Great workout tracking",
+      message: "Logging sets and reps is smooth, and the dashboard charts are very helpful.",
       status: "resolved",
-      adminReply: "Thank you Hamza! Glad you are enjoying the Forge platform. Stay tuned for upcoming updates!",
+      adminReply: "Thank you Alex! Glad you like Forge. More updates are coming soon.",
     },
     {
       user: elena._id,
       type: "issue",
-      subject: "Cardio interval tempo formatting in export",
-      message: "Checking if treadmill interval tempo can be highlighted in custom PDF exports.",
+      subject: "Cardio details in PDF export",
+      message: "Can interval and pace details be shown in the PDF report?",
       status: "in_progress",
-      adminReply: "Thanks Elena, our engineering team is addressing PDF report customization.",
+      adminReply: "Thanks Elena, we are looking into improving the PDF report.",
     },
     {
       user: marcus._id,
       type: "contact",
-      subject: "Platform powerlifting group workouts",
-      message: "Can we organize shared barbell club routines among followers?",
+      subject: "Group workouts",
+      message: "Is it possible to share routines with the people I follow?",
       status: "open",
     },
   ]);
 
   console.log("\n==============================================");
-  console.log("🔥 FORGE SEED COMPLETE FOR HAMZA AAMIR 🔥");
+  console.log("FORGE SEED COMPLETE");
   console.log("==============================================");
-  console.log("User Account (Hamza Aamir):");
-  console.log("  Email:    hamza@forge.fitness");
-  console.log("  Password: Hamza123!");
-  console.log("----------------------------------------------");
-  console.log("Admin Account:");
-  console.log("  Email:    admin@forge.fitness");
-  console.log("  Password: Admin12345!");
-  console.log("----------------------------------------------");
-  console.log("Community Athletes (password: Athlete123!):");
-  console.log("  • elena@forge.fitness");
-  console.log("  • marcus@forge.fitness");
+  console.log("Admin : admin@gmail.com  / Admin12345!");
+  console.log("User  : alex@gmail.com   / Alex12345!   (main demo, most data)");
+  console.log("User  : elena@gmail.com  / Elena12345!");
+  console.log("User  : marcus@gmail.com / Marcus12345!");
   console.log("==============================================\n");
 
   await mongoose.disconnect();
@@ -475,6 +603,6 @@ async function runSeed() {
 }
 
 runSeed().catch((err) => {
-  console.error("❌ Seed failed:", err);
+  console.error("Seed failed:", err);
   process.exit(1);
 });

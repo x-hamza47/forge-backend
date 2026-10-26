@@ -30,7 +30,6 @@ export async function registerUser({ name, username, email, password }) {
 export async function loginUser({ identifier, password }) {
   const value = identifier.trim().toLowerCase();
 
-  // password has select: false, so we ask for it explicitly here
   const user = await User.findOne({
     $or: [{ email: value }, { username: value }],
   }).select("+password");
